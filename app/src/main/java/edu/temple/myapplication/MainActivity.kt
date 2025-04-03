@@ -1,37 +1,32 @@
 package edu.temple.myapplication
 
 import android.content.ComponentName
-import android.content.Intent
-import android.content.ServiceConnection
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.Button
+import android.content.Intent
+import android.content.ServiceConnection
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.widget.Button
 import android.widget.TextView
 
 class MainActivity : AppCompatActivity() {
 
-    lateinit var timerTextView: TextView
-    lateinit var timeBinder: TimerService.TimerBinder
-    var isConnected = false
-
-    val timerHandler = Handler(Looper.getMainLooper()) { message ->
-        val time = message.obj as Long
-        timerTextView.text = time.toString()
+    private var timerBinder: TimerService.TimerBinder? = null
+    val timeHandler = Handler(Looper.getMainLooper()){
+        findViewById<TextView>(R.id.textView).text = it.what.toString()
         true
     }
 
-    val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            timeBinder = service as TimerService.TimerBinder
-            timeBinder.setHandler(timerHandler)
-            isConnected = true
+    val serviceConnection = object : ServiceConnection { //service connection
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) { //service connected
+            timerBinder = service as TimerService.TimerBinder
+            timerBinder?.setHandler(timeHandler) //sets handler
         }
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            isConnected = false
+        override fun onServiceDisconnected(name: ComponentName?) { //service disconnected
+            timerBinder = null
         }
     }
 
@@ -39,29 +34,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        timerTextView = findViewById(R.id.textView)
+        bindService(Intent(this, TimerService::class.java), serviceConnection, BIND_AUTO_CREATE) //binds service
 
-        bindService(
-            Intent(this, TimerService::class.java),
-            serviceConnection,
-            BIND_AUTO_CREATE
-        )
-
-        findViewById<Button>(R.id.startButton).setOnClickListener {
-            if (isConnected) {
-                timeBinder?.start(100)
-            }
+        findViewById<Button>(R.id.startButton).setOnClickListener {//start button
+            if (timerBinder?.isRunning == false) //if timer is not running
+                timerBinder?.start(10) //starts timer
         }
-
-        findViewById<Button>(R.id.stopButton).setOnClickListener {
-            if (isConnected) {
-                timeBinder?.stop()
-            }
+        findViewById<Button>(R.id.stopButton).setOnClickListener { //stop button
+            timerBinder?.stop() //stops timer
         }
-    }
-
-    override fun onDestroy() {
-        unbindService(serviceConnection)
-        super.onDestroy()
     }
 }
