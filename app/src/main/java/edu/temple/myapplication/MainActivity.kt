@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.Button
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.SharedPreferences
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -14,6 +15,8 @@ import android.widget.TextView
 class MainActivity : AppCompatActivity() {
 
     private var timerBinder: TimerService.TimerBinder? = null
+    private lateinit var prefs: SharedPreferences
+
     val timeHandler = Handler(Looper.getMainLooper()){
         findViewById<TextView>(R.id.textView).text = it.what.toString()
         true
@@ -33,15 +36,20 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
+        prefs = getSharedPreferences("prefs", MODE_PRIVATE) //shared preferences
         bindService(Intent(this, TimerService::class.java), serviceConnection, BIND_AUTO_CREATE) //binds service
 
         findViewById<Button>(R.id.startButton).setOnClickListener {//start button
-            if (timerBinder?.isRunning == false) //if timer is not running
-                timerBinder?.start(10) //starts timer
+            val defaultTime = 100
+            val time = if (prefs.getBoolean("paused", false)) prefs.getInt("remaining_time", defaultTime) else defaultTime
+            timerBinder?.start(time)
         }
         findViewById<Button>(R.id.stopButton).setOnClickListener { //stop button
             timerBinder?.stop() //stops timer
         }
+    }
+    override fun onDestroy() { //destroys activity
+        super.onDestroy()
+        unbindService(serviceConnection)
     }
 }
